@@ -15,4 +15,10 @@ module CloudBricks
       brick
     end
   end
+
+
+end
+
+def add_brick(name, &block)
+  add_object(CloudBricks::Define.brick(name, &block))
 end
