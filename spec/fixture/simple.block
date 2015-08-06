@@ -1,7 +1,9 @@
 Define.block 'Zone' {
-  type 'Zone'
+  type 'Vpc'
 
-  parameter 'Name'
+  parameter 'Name' {
+    default block_name
+  }
 
   template 'Simple' {
     file 'simple.template'
@@ -27,14 +29,47 @@ Define.block 'Cell' {
   }
 
   parameter 'CellName' {
-    default 'unassigned'
+    default block_name
   }
 
   template 'Cell' {
     file 'cell.template'
-    parameter 'VpcId', pin: 'Vpc'
+    parameter 'VpcId' {
+      connect_to pin('Vpc')
+    }
   }
 }
 
 Create.block 'Zone1', type: 'Zone', parameters: { Name: 'Zone1' }
-Create.block 'JabuticabaCell', type: 'Cell', pins: { Vpc: zone('Zone1').slot('Vpc') }, parameters: { CellName: 'Jabuticaba' }
+Create.block 'JabuticabaCell' {
+  type 'Cell'
+  pin 'Vpc' {
+    connect_to zone('Zone1').slot('Vpc')
+  }
+
+  parameter 'CellName' {
+    value 'Jabuticaba'
+  }
+
+Define.block 'Network' {
+  type 'Network'
+
+  4.times { |zone_index|
+    Create.block "Zone#{zone_index}" {
+      type 'Zone'
+    }
+
+    27.times { |cell_index|
+      Create.block "Cell#{cell_index}" {
+        type 'Cell'
+        pin 'Vpc' {
+          connect_to zone("Zone#{zone_index}")
+        }
+      }
+    }
+  }
+
+  Create.block 'Routing' {
+
+  }
+}
