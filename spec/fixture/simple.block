@@ -1,4 +1,4 @@
-Define.block 'Zone' {
+Define.block 'Vpc' {
   type 'Vpc'
 
   parameter 'Name' {
@@ -6,16 +6,19 @@ Define.block 'Zone' {
   }
 
   template 'Simple' {
-    file 'simple.template'
     type Template::Type::JSON
+    file 'simple.template'
+    additional_files {
+      file 'nested.template'
+    }
   }
 
   template 'DSL' {
-    file 'dsl.rb'
     type Template::Type::DSL
+    file 'dsl.rb'
   }
 
-  slot 'Vpc' {
+  stud 'Vpc' {
     type 'VpcId'
     from(template: 'Simple').get_output('VpcId')
   }
@@ -24,7 +27,7 @@ Define.block 'Zone' {
 Define.block 'Cell' {
   type 'Cell'
 
-  pin 'Vpc' {
+  tube 'Vpc' {
     type 'VpcId'
   }
 
@@ -40,36 +43,112 @@ Define.block 'Cell' {
   }
 }
 
-Create.block 'Zone1', type: 'Zone', parameters: { Name: 'Zone1' }
+Create.block 'Vpc1' {
+  type 'Vpc'
+  parameter 'Name' {
+    value 'FirstVpc'
+  }
+}
+
 Create.block 'JabuticabaCell' {
   type 'Cell'
-  pin 'Vpc' {
-    connect_to zone('Zone1').slot('Vpc')
+  tube 'Vpc' {
+    connect_to block('Vpc1').stud('Vpc')
   }
 
   parameter 'CellName' {
     value 'Jabuticaba'
   }
 
+Define.block 'Peering' {
+  type 'Peering'
+
+  tube 'MainVpc' {
+    type 'Vpc'
+  }
+
+  tube 'PeeredVpc' {
+    type 'Vpc'
+  }
+
+  template {
+    type Template::Type::DSL
+
+    data {
+      resource 'PeeringConnection',
+         Type: 'AWS::PeeringConnection',
+         Properties: {
+          Vpc: tube('MainVpc'),
+          PeeredVpc: tube('PeeredVpc')
+         }
+    }
+  }
+}
+
+Define.block 'MeshedPeerings' {
+  description "Creates peering between multiple VPCs"
+
+  tube 'VpcList' {
+    type list_of 'Vpc'
+    min 2
+  }
+
+  list = UnorderedPair.new
+
+  def already_paired(vpc1, vpc2)
+    list.include? [vpc1, vpc2]
+  end
+
+  def add_pair(vpc1, vpc2)
+    list << [vpc1, vpc2]
+  end
+
+  tube('VpcList').each { |vpc1|
+    tube('VpcList').each { |vpc2|
+      next if already_paired vpc1, vpc2
+
+      add_pair vpc1, vpc2
+
+      Create.block "#{vpc1}#{vpc2}Peering" {
+        type 'Peering'
+
+        tube 'MainVpc' {
+          value vpc1
+        }
+
+        tube 'PeeredVpc' {
+          value vpc2
+        }
+      }
+    }
+  }
+}
+
 Define.block 'Network' {
   type 'Network'
 
-  4.times { |zone_index|
-    Create.block "Zone#{zone_index}" {
-      type 'Zone'
+  4.times { |vpc_index|
+    Create.block "Vpc#{vpc_index}" {
+      type 'Vpc'
+      group 'NetworkVpc'
     }
 
     27.times { |cell_index|
       Create.block "Cell#{cell_index}" {
         type 'Cell'
-        pin 'Vpc' {
-          connect_to zone("Zone#{zone_index}")
+        tube 'Vpc' {
+          connect_to block("Vpc#{vpc_index}")
         }
       }
     }
   }
 
-  Create.block 'Routing' {
-
+  Create.block 'PeerMultipleVpcs' {
+    type 'MeshedPeerings'
+    parameter 'VpcList' {
+      value group 'NetworkVpc'
+    }
   }
+
+
 }
