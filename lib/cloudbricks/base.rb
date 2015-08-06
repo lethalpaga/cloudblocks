@@ -13,6 +13,8 @@ module CloudBricks
       attribute = klass.new(*args)
       attribute.instance_eval(&block) if block_given?
 
+      CloudBricks::BasePlate.add_object(attribute)
+
       attribute
     end
   end
