@@ -1,0 +1,40 @@
+Define.block 'Zone' {
+  type 'Zone'
+
+  parameter 'Name'
+
+  template 'Simple' {
+    file 'simple.template'
+    type Template::Type::JSON
+  }
+
+  template 'DSL' {
+    file 'dsl.rb'
+    type Template::Type::DSL
+  }
+
+  slot 'Vpc' {
+    type 'VpcId'
+    from(template: 'Simple').get_output('VpcId')
+  }
+}
+
+Define.block 'Cell' {
+  type 'Cell'
+
+  pin 'Vpc' {
+    type 'VpcId'
+  }
+
+  parameter 'CellName' {
+    default 'unassigned'
+  }
+
+  template 'Cell' {
+    file 'cell.template'
+    parameter 'VpcId', pin: 'Vpc'
+  }
+}
+
+Create.block 'Zone1', type: 'Zone', parameters: { Name: 'Zone1' }
+Create.block 'JabuticabaCell', type: 'Cell', pins: { Vpc: zone('Zone1').slot('Vpc') }, parameters: { CellName: 'Jabuticaba' }
