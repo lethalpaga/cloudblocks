@@ -21,6 +21,10 @@ module CloudBricks
       @studs[name] = define_attribute(Stud, name, &block)
     end
 
+    def tubes(name, &block)
+      @tubes[name] = define_attribute(Tube, name, &block)
+    end
+
     private
 
 
