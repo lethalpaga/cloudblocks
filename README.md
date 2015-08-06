@@ -1,16 +1,16 @@
-# Cloudblocks
+# CloudBricks
 
-Allows the creation of resources in AWS by using reusable blocks.
+Allows the creation of resources in AWS by using reusable bricks.
 
-A block is a CloudFormation container, with inputs ('Pins') and outputs ('slots').
-Ruby scripts can be triggered when associating 2 blocks.
+A brick is a CloudFormation container, with inputs ('tubes'), outputs ('studs').
+Ruby scripts can be triggered when associating 2 bricks.
 
 ## Installation
 
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'cloudblocks'
+gem 'cloudbricks'
 ```
 
 And then execute:
@@ -19,7 +19,7 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install cloudblocks
+    $ gem install cloudbricks
 
 ## Usage
 
@@ -33,4 +33,4 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/lethalpaga/cloudblocks.
+Bug reports and pull requests are welcome on GitHub at https://github.com/lethalpaga/cloudbricks.
