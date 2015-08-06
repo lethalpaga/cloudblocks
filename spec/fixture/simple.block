@@ -1,12 +1,13 @@
-Define.block 'Vpc' {
+Define.brick 'Vpc' {
   type 'Vpc'
 
-  parameter 'Name' {
-    default block_name
+  tube 'Name' {
+    type 'Parameter'
+    default brick_name
   }
 
   template 'Simple' {
-    type Template::Type::JSON
+    type CloudFormation::JSON
     file 'simple.template'
     additional_files {
       file 'nested.template'
@@ -14,25 +15,34 @@ Define.block 'Vpc' {
   }
 
   template 'DSL' {
-    type Template::Type::DSL
+    type CloudFromation::DSL
     file 'dsl.rb'
   }
 
   stud 'Vpc' {
     type 'VpcId'
-    from(template: 'Simple').get_output('VpcId')
+    value from(template: 'Simple').get_output('VpcId')
   }
 }
 
-Define.block 'Cell' {
+Define.brick 'Cell' {
   type 'Cell'
 
   tube 'Vpc' {
     type 'VpcId'
   }
 
+  tube 'Tiers' {
+    type list_of 'parameter'
+  }
+
+  tube 'AvailabilityGroups' {
+    type 'parameter'
+    default 3
+  }
+
   parameter 'CellName' {
-    default block_name
+    default brick_name
   }
 
   template 'Cell' {
@@ -41,26 +51,36 @@ Define.block 'Cell' {
       connect_to pin('Vpc')
     }
   }
+
+  from(tube: 'Tiers').each { |tier|
+    from(tube: 'AvailabilityGroups').times { |ag|
+      stud "#{tier}Subnet#{ag}" {
+        type 'SubnetId'
+        tag Tier: tier
+        value from(template: 'Cell').get_output("#{tier}Subnet#{ag}Id")
+      }
+    }
+  }
 }
 
-Create.block 'Vpc1' {
+Create.brick 'Vpc1' {
   type 'Vpc'
   parameter 'Name' {
     value 'FirstVpc'
   }
 }
 
-Create.block 'JabuticabaCell' {
+Create.brick 'JabuticabaCell' {
   type 'Cell'
   tube 'Vpc' {
-    connect_to block('Vpc1').stud('Vpc')
+    connect_to brick('Vpc1').stud('Vpc')
   }
 
   parameter 'CellName' {
     value 'Jabuticaba'
   }
 
-Define.block 'Peering' {
+Define.brick 'Peering' {
   type 'Peering'
 
   tube 'MainVpc' {
@@ -71,8 +91,8 @@ Define.block 'Peering' {
     type 'Vpc'
   }
 
-  template {
-    type Template::Type::DSL
+  template 'Peering' {
+    type CloudFormation::DSL
 
     data {
       resource 'PeeringConnection',
@@ -81,11 +101,19 @@ Define.block 'Peering' {
           Vpc: tube('MainVpc'),
           PeeredVpc: tube('PeeredVpc')
          }
+
+       output 'PeeringId',
+         Value: ref('PeeringConnection')
     }
+  }
+
+  stud 'PeeringId' {
+    type 'PeeringId'
+    value from(template: 'Peering').get_output('PeeringId')
   }
 }
 
-Define.block 'MeshedPeerings' {
+Define.brick 'MeshedPeerings' {
   description "Creates peering between multiple VPCs"
 
   tube 'VpcList' {
@@ -109,7 +137,9 @@ Define.block 'MeshedPeerings' {
 
       add_pair vpc1, vpc2
 
-      Create.block "#{vpc1}#{vpc2}Peering" {
+      brick_name = "#{vpc1}#{vpc2}Peering"
+
+      Create.brick brick_name {
         type 'Peering'
 
         tube 'MainVpc' {
@@ -120,33 +150,89 @@ Define.block 'MeshedPeerings' {
           value vpc2
         }
       }
+
+      stud brick_name {
+        type 'PeeringId'
+        value from(brick brick_name).get stud('PeeringId')
+      }
     }
   }
 }
 
-Define.block 'Network' {
+Define.brick 'Route' {
+  tube 'RouteTable' {
+    type: 'RouteTable'
+  }
+
+  tube 'Source' {
+    type 'Vpc'
+  }
+
+  tube 'Destination' {
+    type either 'Vpc', 'Peering', 'Gateway'
+  }
+
+  template 'Route' {
+    #TODO
+  }
+}
+
+Define.brick 'Network' {
   type 'Network'
 
   4.times { |vpc_index|
-    Create.block "Vpc#{vpc_index}" {
+    Create.brick "Vpc#{vpc_index}" {
       type 'Vpc'
-      group 'NetworkVpc'
+      tag 'NetworkVpc'
+    }
+
+    3.times {
+      Create.brick 'ApplicationRouteTable' {
+        type 'RouteTable'
+        tag 'RouteTable'
+        tag 'Application'
+      }
+
+      Create.brick 'ServiceRouteTable' {
+        type 'RouteTable'
+        tag 'RouteTable'
+        tag 'Service'
+      }
     }
 
     27.times { |cell_index|
-      Create.block "Cell#{cell_index}" {
+      Create.brick "Cell#{cell_index}" {
         type 'Cell'
+
+        tag 'Cell'
+        tag Type: 'Services' if cell_index == 0 or tag Type: 'ApplicationCell'
+
         tube 'Vpc' {
-          connect_to block("Vpc#{vpc_index}")
+          connect_to brick("Vpc#{vpc_index}")
         }
       }
     }
   }
 
-  Create.block 'PeerMultipleVpcs' {
+  Create.brick 'PeerMultipleVpcs' {
     type 'MeshedPeerings'
     parameter 'VpcList' {
-      value group 'NetworkVpc'
+      value from tag 'NetworkVpc'
+    }
+  }
+
+  from(tag 'Cell').each { |cell|
+    from(cell.studs).with(tag 'Type').each { |stud|
+      Create.brick 'TierRoute' {
+        type 'Route'
+        tube 'source' {
+          value from(brick: cell).get stud('Vpc')
+        }
+
+        tube 'destination' {
+          value from(tag: 'RouteTable').with(tag: {Type: cell.tag('Type')})
+        }
+      }
     }
   }
 
