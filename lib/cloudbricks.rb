@@ -1,5 +1,3 @@
-require "cloudbricks/version"
-
-module CloudBricks
-  # Your code goes here...
-end
+require 'cloudbricks/version'
+require 'cloudbricks/base_plate'
+require 'cloudbricks/define'
