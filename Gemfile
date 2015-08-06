@@ -1,4 +1,4 @@
 source 'https://rubygems.org'
 
-# Specify your gem's dependencies in cloudblocks.gemspec
+# Specify your gem's dependencies in cloudbricks.gemspec
 gemspec

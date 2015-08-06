@@ -1,8 +1,8 @@
 require 'spec_helper'
 
-describe Cloudblocks do
+describe CloudBricks do
   it 'has a version number' do
-    expect(Cloudblocks::VERSION).not_to be nil
+    expect(CloudBricks::VERSION).not_to be nil
   end
 
   it 'does something useful' do
