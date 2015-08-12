@@ -5,8 +5,15 @@ module CloudBricks
   class Base
     attr_accessor :name
 
+    @@current_base_plate = nil
+
     def initialize(name)
       @name = name
+
+    end
+
+    def base_plate
+      @@current_base_plate.freeze
     end
 
     def define_attribute(klass, *args, &block)
@@ -16,6 +23,10 @@ module CloudBricks
       CloudBricks::BasePlate.add_object(attribute)
 
       attribute
+    end
+
+    def self._set_current_base_plate(base_plate)
+      @@current_base_plate = base_plate
     end
   end
 end
